@@ -1,7 +1,7 @@
 import pandas as pd, numpy as np
 import os
 DATA=os.environ.get("RAGNAROK_DATA","data")
-m=pd.read_csv(DATA+'/GOLDmicro1.csv',header=None,names=['d','tm','o','h','l','c','v'])
+m=pd.read_csv(DATA+'/'+os.environ.get('M1FILE','GOLDmicro1.csv')+'',header=None,names=['d','tm','o','h','l','c','v'])
 m['t']=pd.to_datetime(m.d+' '+m.tm,format='%Y.%m.%d %H:%M'); m=m.set_index('t')
 b=pd.read_pickle(DATA+'/baskets.pkl')
 rows=[]

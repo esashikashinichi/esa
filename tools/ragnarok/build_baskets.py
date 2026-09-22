@@ -4,7 +4,7 @@ DATA=os.environ.get("RAGNAROK_DATA","data")
 d=pd.read_csv(DATA+'/ea_monitor.csv',sep=';')
 d['t']=pd.to_datetime(d.server_time,format='%Y.%m.%d %H:%M:%S')
 d['g']=d.comment.str[0]; d['leg']=d.comment.str.split('_').str[1].astype(int)
-cur={}; baskets=[]
+cur={}; baskets=[]; closes={}
 def fin(k):
     if k in cur and cur[k]: baskets.append((k,cur[k]))
     cur[k]=[]
@@ -14,9 +14,13 @@ for _,r in d.iterrows():
         if r.leg==0: fin(k)
         cur.setdefault(k,[]).append(dict(r))
     else:
-        for L in cur.get(k,[]):
-            if L['ticket']==r.ticket: L['cp']=r.close_price; L['ct']=r.t; L['pf']=r.profit
+        closes[r.ticket]=r
 for k in list(cur): fin(k)
+# CLOSEは次のバスケットの初弾より後に届くことがあるため、ticketで後から突き合わせる
+for _,legs in baskets:
+    for L in legs:
+        c=closes.get(L['ticket'])
+        if c is not None: L['cp']=c.close_price; L['ct']=c.t; L['pf']=c.profit
 rows=[]
 for (g,ty),legs in baskets:
     sgn=1 if ty=='buy' else -1

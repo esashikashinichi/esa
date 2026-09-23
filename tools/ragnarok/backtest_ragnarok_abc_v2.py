@@ -144,7 +144,7 @@ class Engine:
         self.last_entry = {}                # (grid, direction) -> 直近の初弾時刻
         self.closed = []
         self.balance = equity
-        self.replay = replay_entries        # {bar_time: [(grid, direction, t), ...]}
+        self.replay = replay_entries        # {bar_time: [(grid, direction, t, 約定価格), ...]}
         self.stats = dict(worst_float_yen=0.0, worst_float_time=None, max_lots=0.0,
                           max_lots_time=None, min_level=None, stopout=None, rejected=0)
 

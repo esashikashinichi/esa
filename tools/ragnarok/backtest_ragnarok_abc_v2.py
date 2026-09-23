@@ -133,9 +133,59 @@ class Basket:
                     lots="/".join(f"{x:.2f}" for x in self.lots))
 
 
+def us_dst(ts):
+    """米国夏時間(3月第2日曜〜11月第1日曜)。XMのサーバー時間は夏GMT+3/冬GMT+2"""
+    mar = pd.Timestamp(ts.year, 3, 1)
+    start = mar + pd.Timedelta(days=(6 - mar.dayofweek) % 7 + 7)
+    nov = pd.Timestamp(ts.year, 11, 1)
+    end = nov + pd.Timedelta(days=(6 - nov.dayofweek) % 7)
+    return start <= ts < end
+
+
+def to_jst(ts):
+    return ts + pd.Timedelta(hours=6 if us_dst(ts) else 7)
+
+
+def parse_block(spec):
+    """'2,3,4:20-24' → {(曜日, 時)}。曜日は日本時間の月=0〜日=6、時は日本時間。複数は ; 区切り"""
+    out = set()
+    if not spec:
+        return out
+    for part in spec.split(";"):
+        days, hours = part.split(":")
+        h0, h1 = (int(x) for x in hours.split("-"))
+        for d in days.split(","):
+            for h in range(h0, h1):
+                out.add((int(d), h % 24))
+    return out
+
+
+def month_stop_days(m1_index, n):
+    """月末・月初の営業日(日本時間7:00区切り、月〜金)を n 日ずつ返す"""
+    if n <= 0:
+        return set()
+    tdays = sorted({(to_jst(t) - pd.Timedelta(hours=7)).normalize() for t in m1_index[::60]})
+    tdays = [d for d in tdays if d.dayofweek < 5]
+    by_month = {}
+    for d in tdays:
+        by_month.setdefault((d.year, d.month), []).append(d)
+    out = set()
+    for ym, ds in by_month.items():
+        # 月の途中から/途中までのデータしか無い月は、端の日を月末・月初と誤認しないよう暦で判定
+        last_cal = pd.Timestamp(ym[0], ym[1], 1) + pd.offsets.MonthEnd(0)
+        bds = pd.bdate_range(pd.Timestamp(ym[0], ym[1], 1), last_cal)
+        out.update(d for d in bds[:n] if d in ds)
+        out.update(d for d in bds[-n:] if d in ds)
+    return out
+
+
 class Engine:
-    def __init__(self, m1, fire="always", seed=0, equity=None, replay_entries=None, max_legs=MAX_LEGS):
+    def __init__(self, m1, fire="always", seed=0, equity=None, replay_entries=None, max_legs=MAX_LEGS,
+                 block=None, month_stop=0):
         self.m1 = m1
+        self.block = block or set()
+        self.stop_days = month_stop_days(m1.index, month_stop)
+        self.blocked_entries = 0
         self.max_legs = max_legs
         self.close = m1["close"]
         self.fire = fire
@@ -170,6 +220,11 @@ class Engine:
                 bid = price - SPREAD if d == 1 else price     # 実ログの約定価格(買いはask)をbidに換算
                 self.baskets[key] = Basket(grid, d, te, bid)
             return
+        if self.block or self.stop_days:
+            j = to_jst(t)
+            if (j.dayofweek, j.hour) in self.block or (j - pd.Timedelta(hours=7)).normalize() in self.stop_days:
+                self.blocked_entries += 1
+                return
         for grid, p in GRIDS.items():
             if t.minute % p["tf"]:
                 continue
@@ -351,6 +406,10 @@ def main():
     ap.add_argument("--replay", default=None, help="ea_monitor.csv を指定すると再現検証モード")
     ap.add_argument("--start", default=None)
     ap.add_argument("--end", default=None)
+    ap.add_argument("--block", default=None,
+                    help="新規の初弾を止める曜日・時間(日本時間)。例 '2,3,4:20-24' = 水木金の20〜24時。';'で複数")
+    ap.add_argument("--month-stop", type=int, default=0,
+                    help="月末・月初の営業日を各N日、新規の初弾を止める(日本時間7:00区切り)")
     args = ap.parse_args()
 
     m1 = load_m1(args.m1)
@@ -369,9 +428,15 @@ def main():
         compare_replay(closed, still_open, events)
     else:
         print(f"初弾の発火: {args.fire}" + (f" (seed={args.seed})" if args.fire == "prob" else ""))
-        eng = Engine(m1, fire=args.fire, seed=args.seed, equity=args.equity, max_legs=args.max_legs)
+        eng = Engine(m1, fire=args.fire, seed=args.seed, equity=args.equity, max_legs=args.max_legs,
+                     block=parse_block(args.block), month_stop=args.month_stop)
+        if args.block or args.month_stop:
+            print(f"新規停止: 曜日・時間={args.block or 'なし'} / 月末月初={args.month_stop}日 "
+                  f"(対象日: {', '.join(d.strftime('%m-%d') for d in sorted(eng.stop_days)) or 'なし'})")
         closed, still_open = eng.run()
         summarize(closed, still_open, eng.stats, span_days, eng.balance, args.equity)
+        if args.block or args.month_stop:
+            print(f"停止で見送った判定回数(分): {eng.blocked_entries}")
 
 
 if __name__ == "__main__":

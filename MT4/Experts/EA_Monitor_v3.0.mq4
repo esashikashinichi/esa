@@ -1389,6 +1389,12 @@ void SendTelegramMessage(string text)
       else
          Print("Telegram送信失敗 err=", err);
    }
+   else if(res != 200)
+   {
+      // [v3] トークン・chat_idの間違い(401/404/400)などを見逃さないようにする
+      Print("Telegram送信失敗: HTTP ", res, " (トークンまたはchat_idが正しいか確認してください) ",
+            CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8));
+   }
 }
 
 //+------------------------------------------------------------------+

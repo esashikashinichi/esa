@@ -34,7 +34,7 @@ for g in 'bca':
             s=(m.o[t]-m.c[ref])*100*sg
             le=ends[ends<t]; since=(t-le.iloc[-1]).total_seconds()/60 if len(le) else 999
             out.append(dict(t=t,ty=ty,ent=ent,s=s,since=since))
-    d=pd.DataFrame(out); d.to_pickle(fDATA+'/entry2_{g}.pkl')
+    d=pd.DataFrame(out); d.to_pickle(f'{DATA}/entry2_{g}.pkl')
     for ty in ('buy','sell'):
         z=d[d.ty==ty]; e=z[z.ent]; n=z[(~z.ent)&(z.s>0)]
         print(f'{g} {ty}: entries {len(e)} (s>0: {(e.s>0).sum()})  missed bars with s>0: {len(n)}  (since>=5: {(n.since>=5).sum()})')

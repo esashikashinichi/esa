@@ -28,7 +28,7 @@ def at(series,tf,t):
     if len(idx)<2: return np.nan,np.nan
     return series[idx[-1]],series[idx[-2]]
 for g in 'bca':
-    x=pd.read_pickle(fDATA+'/entry3_{g}.pkl')
+    x=pd.read_pickle(f'{DATA}/entry3_{g}.pkl')
     out=[]
     for name,s in sig.items():
         tf=int(name.split('_')[-1])

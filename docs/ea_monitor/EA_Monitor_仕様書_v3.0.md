@@ -16,7 +16,7 @@
 | 5 | 足替わりタイマーと稼働状態の表示(表示位置は左上/右上/左下/右下から選択) | 画面での確認用 |
 | 6 | 起動時にTelegramへ起動通知 | Telegram設定が正しいかの確認用 |
 | 7 | `OnTick()` を追加 | EAとして確実に認識させるため(移行ドキュメントの教訓2) |
-| 8 | 既定値の変更: `FeatureBaseTF` = M1、`TelegramChatId` = 7173265821 | 現在の運用設定に合わせた |
+| 8 | 既定値の変更: `FeatureBaseTF` = M1、`EnableTelegram` = true、`TelegramChatId` = 7173265821。トークンはコードに入れない(v2の設定を.setで引き継ぐ) | 現在の運用設定に合わせた |
 
 既存の4つのCSV(`ea_monitor.csv` / `_equity` / `_baskets` / `_features`)は**列を変えていない**ので、v2から続けて記録できる。`ea_monitor.csv` の event 列に `CLOSE_NOHIST` が増えるだけ。
 

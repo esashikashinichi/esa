@@ -68,7 +68,7 @@ extern string FeatureFileName       = "ea_monitor_features.csv";
 //            2) Botとのチャットを開始し、TelegramChatId(自分のchat_id)を取得
 //            3) MT4「ツール>オプション>EA」の"WebRequestを許可するURL"に
 //               https://api.telegram.org を追加しておくこと(必須)
-extern bool   EnableTelegram             = false;   // Telegram通知を有効化するか
+extern bool   EnableTelegram             = true;    // Telegram通知を有効化するか
 extern string TelegramBotToken           = "";      // BotFatherから取得したトークン
 extern string TelegramChatId             = "7173265821"; // 通知先のchat_id
 extern bool   TelegramNotifyOpen         = true;    // 新規建て/ナンピン追加弾/指値約定

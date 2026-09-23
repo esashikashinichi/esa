@@ -179,13 +179,42 @@ def month_stop_days(m1_index, n):
     return out
 
 
+# 経済指標フィルターの近似(ラグナロク: StopMin=120 / StartMin=60 で新規の初弾だけ停止)
+# 指標カレンダーが無いため、毎週決まって出る米指標だけで近似する。時刻は米東部時間(ET)。
+# XMのサーバー時間は夏冬ともに ET+7時間。
+FOMC_DATES = ["2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16",
+              "2026-10-28", "2026-12-09"]
+NEWS_STOP_BEFORE = 120
+NEWS_START_AFTER = 60
+
+
+def news_windows(m1_index):
+    """(開始, 終了) のサーバー時間リスト。水 10:30 EIA原油在庫 / 木 8:30 新規失業保険 / 第1金 8:30 雇用統計 / FOMC 14:00"""
+    events = []
+    for day in pd.date_range(m1_index[0].normalize(), m1_index[-1].normalize()):
+        if day.dayofweek == 2:
+            events.append(day + pd.Timedelta(hours=10, minutes=30))
+        if day.dayofweek == 3:
+            events.append(day + pd.Timedelta(hours=8, minutes=30))
+        if day.dayofweek == 4 and day.day <= 7:
+            events.append(day + pd.Timedelta(hours=8, minutes=30))
+        if day.strftime("%Y-%m-%d") in FOMC_DATES:
+            events.append(day + pd.Timedelta(hours=14))
+    out = []
+    for et in events:
+        srv = et + pd.Timedelta(hours=7)
+        out.append((srv - pd.Timedelta(minutes=NEWS_STOP_BEFORE), srv + pd.Timedelta(minutes=NEWS_START_AFTER)))
+    return out
+
+
 class Engine:
     def __init__(self, m1, fire="always", seed=0, equity=None, replay_entries=None, max_legs=MAX_LEGS,
-                 block=None, month_stop=0):
+                 block=None, month_stop=0, news=False):
         self.m1 = m1
         self.block = block or set()
         self.stop_days = month_stop_days(m1.index, month_stop)
         self.blocked_entries = 0
+        self.news = news_windows(m1.index) if news else []
         self.max_legs = max_legs
         self.close = m1["close"]
         self.fire = fire
@@ -220,9 +249,10 @@ class Engine:
                 bid = price - SPREAD if d == 1 else price     # 実ログの約定価格(買いはask)をbidに換算
                 self.baskets[key] = Basket(grid, d, te, bid)
             return
-        if self.block or self.stop_days:
+        if self.block or self.stop_days or self.news:
             j = to_jst(t)
-            if (j.dayofweek, j.hour) in self.block or (j - pd.Timedelta(hours=7)).normalize() in self.stop_days:
+            if ((j.dayofweek, j.hour) in self.block or (j - pd.Timedelta(hours=7)).normalize() in self.stop_days
+                    or any(a <= t < b for a, b in self.news)):
                 self.blocked_entries += 1
                 return
         for grid, p in GRIDS.items():
@@ -410,6 +440,8 @@ def main():
                     help="新規の初弾を止める曜日・時間(日本時間)。例 '2,3,4:20-24' = 水木金の20〜24時。';'で複数")
     ap.add_argument("--month-stop", type=int, default=0,
                     help="月末・月初の営業日を各N日、新規の初弾を止める(日本時間7:00区切り)")
+    ap.add_argument("--news", action="store_true",
+                    help="経済指標の新規停止(120分前〜60分後)を近似で入れる(水EIA・木失業保険・第1金雇用統計・FOMC)")
     args = ap.parse_args()
 
     m1 = load_m1(args.m1)
@@ -429,13 +461,13 @@ def main():
     else:
         print(f"初弾の発火: {args.fire}" + (f" (seed={args.seed})" if args.fire == "prob" else ""))
         eng = Engine(m1, fire=args.fire, seed=args.seed, equity=args.equity, max_legs=args.max_legs,
-                     block=parse_block(args.block), month_stop=args.month_stop)
-        if args.block or args.month_stop:
-            print(f"新規停止: 曜日・時間={args.block or 'なし'} / 月末月初={args.month_stop}日 "
+                     block=parse_block(args.block), month_stop=args.month_stop, news=args.news)
+        if args.block or args.month_stop or args.news:
+            print(f"新規停止: 曜日・時間={args.block or 'なし'} / 月末月初={args.month_stop}日 / 指標={'あり' if args.news else 'なし'} "
                   f"(対象日: {', '.join(d.strftime('%m-%d') for d in sorted(eng.stop_days)) or 'なし'})")
         closed, still_open = eng.run()
         summarize(closed, still_open, eng.stats, span_days, eng.balance, args.equity)
-        if args.block or args.month_stop:
+        if args.block or args.month_stop or args.news:
             print(f"停止で見送った判定回数(分): {eng.blocked_entries}")
 
 

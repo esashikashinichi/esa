@@ -31,9 +31,12 @@ class M15Mixin:
         prev = self.prev_close.get(t)
         if prev is None:
             return
-        if self.news and any(a <= t < b for a, b in self.news):     # 経済指標停止(--news と同じ近似)
-            self.blocked_entries += 1
-            return
+        if self.block or self.stop_days or self.news:             # 新規停止(Engine.entries と同じ判定)
+            j = bt.to_jst(t)
+            if ((j.dayofweek, j.hour) in self.block or (j - pd.Timedelta(hours=7)).normalize() in self.stop_days
+                    or any(a <= t < b for a, b in self.news)):
+                self.blocked_entries += 1
+                return
         mom = bar["open"] - prev
         if mom == 0:
             return

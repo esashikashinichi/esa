@@ -31,6 +31,9 @@ class M15Mixin:
         prev = self.prev_close.get(t)
         if prev is None:
             return
+        if self.news and any(a <= t < b for a, b in self.news):     # 経済指標停止(--news と同じ近似)
+            self.blocked_entries += 1
+            return
         mom = bar["open"] - prev
         if mom == 0:
             return

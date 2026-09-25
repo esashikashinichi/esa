@@ -124,7 +124,7 @@ extern int    MissingCloseMaxTries = 60;                       // 決済履歴�
 
 //--- [v3.7] ラグナロクの軽量イベント記録(直前の高値・安値、決済前の最大含み益) -----------
 //  ラグナロクのマジック(RagnarokMagicBuy/Sell)で、コメントが「英字_数字」の注文だけを記録する。
-//  値動きはティックごとに追跡するため、このEAはGOLDmicroのチャートに設定すること。
+//  値動きはティックごとに追跡するため、このEAはRagnarokが取引する銘柄のチャートに設定すること。
 extern bool   EnableEventLog       = true;                         // ea_monitor_events_v38.csv を出力するか
 extern string EventFileName        = "ea_monitor_events_v38.csv";  // [v3.8] オシレーターの列を追加したため新ファイル
 extern int    NanpinMinSeconds     = 420;                          // ナンピンの時間条件(記録用。解析19)

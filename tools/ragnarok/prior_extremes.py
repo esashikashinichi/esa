@@ -339,7 +339,7 @@ def main():
     df = df[COLS].sort_values(['time', 'event']).reset_index(drop=True)
     for c in ['time', 'prev_leg_time', 'adv_max_time', 'cond_met_time', 'mfe_time', 'reach100_time']:
         df[c] = pd.to_datetime(df[c]).dt.strftime('%Y.%m.%d %H:%M:%S')
-    df.to_csv(a.out, sep=';', index=False, float_format='%.5g')
+    df.to_csv(a.out, sep=';', index=False, float_format='%.8g')
     print('log', log.t.min(), '->', log.t.max(), '| bars', bars.b.index.min(), '->', bars.b.index.max())
     print(df.event.value_counts().to_string())
     print('saved', a.out, len(df))

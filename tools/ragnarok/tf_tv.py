@@ -5,7 +5,7 @@ import os, itertools, numpy as np, pandas as pd
 from multiprocessing import Pool
 import tf_model as t, tf_sl4 as sl
 TF=os.environ.get('TF','M15')
-o=t.load_m15('../data/GOLDmicro15.csv' if TF=='M15' else '../data/GOLDmicro5.csv'); d=t.Data(o); N=d.N
+o=t.load_m15({'M15':'../data/GOLDmicro15.csv','M5':'../data/GOLDmicro5.csv','M1':'../data/M1_long.csv'}[TF]); d=t.Data(o); N=d.N
 DAYS=len(set(o.index.date)); idx=o.index
 h,l,c=d.H,d.L,d.C
 def sgn_flip(dirn):
